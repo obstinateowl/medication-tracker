@@ -5,7 +5,7 @@ description: >-
   Household medication tracking — log doses, interval timers, max per day,
   and per-profile quick buttons. Connects to MariaDB on your Home Assistant server.
   Publishes MQTT state for Home Assistant automations and notifications.
-url: https://github.com/your-org/medication-tracker
+url: https://github.com/obstinateowl/medication-tracker
 arch:
   - aarch64
   - amd64
