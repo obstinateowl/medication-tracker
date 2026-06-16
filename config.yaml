@@ -1,5 +1,5 @@
 name: Medication Tracker
-version: "1.3.0"
+version: "1.4.0"
 slug: medication_tracker
 description: >-
   Household medication tracking — log doses, interval timers, max per day,

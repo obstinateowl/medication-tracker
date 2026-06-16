@@ -50,7 +50,7 @@ export const config = {
     password: process.env.MQTT_PASSWORD ?? "",
     topicPrefix: process.env.MQTT_TOPIC_PREFIX ?? "medication_tracker",
     discoveryPrefix: process.env.MQTT_DISCOVERY_PREFIX ?? "homeassistant",
-    pollIntervalMs: Number(process.env.MQTT_POLL_INTERVAL_MS ?? 60_000),
+    pollIntervalMs: Number(process.env.MQTT_POLL_INTERVAL_MS ?? 30_000),
   },
   staticDir: serveStatic ? join(__dirname, "../../client/dist") : null,
 };

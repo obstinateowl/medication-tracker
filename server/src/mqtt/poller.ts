@@ -1,5 +1,6 @@
 import { config } from "../config.js";
 import { gatherMqttStates } from "./gatherStates.js";
+import { processMqttEvents } from "./eventPublisher.js";
 import { MqttHaPublisher } from "./publisher.js";
 
 let publisher: MqttHaPublisher | null = null;
@@ -12,6 +13,9 @@ async function runSync(): Promise<void> {
   try {
     const states = await gatherMqttStates();
     await publisher.sync(states);
+    if (publisher.client) {
+      processMqttEvents(publisher.client, states, config.mqtt.topicPrefix);
+    }
   } catch (err) {
     console.error("[mqtt] Sync failed:", err);
   } finally {

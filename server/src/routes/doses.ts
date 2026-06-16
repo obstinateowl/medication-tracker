@@ -74,7 +74,9 @@ router.post("/", async (req, res, next) => {
           medicationId,
           med,
           takenAtParsed!,
-          now
+          now,
+          undefined,
+          true
         )
       : await validateImmediateDose(profileId, medicationId, med, now);
 

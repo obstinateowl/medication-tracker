@@ -47,3 +47,10 @@ export interface LastDoseRow extends RowDataPacket {
 export interface IdRow extends RowDataPacket {
   id: number;
 }
+
+export interface ProfileMedicationRow extends RowDataPacket {
+  profile_id: number;
+  medication_id: number;
+  notify_when_due?: number | boolean;
+  notify_minutes_before?: number | null;
+}

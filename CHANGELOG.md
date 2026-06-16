@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0
+
+- MQTT edge events (`events/due`, `events/reminder`) for scalable HA automations
+- Settings → Notifications: per-profile notify-when-due and early reminder (minutes before)
+- Assignment API preserves notification prefs when quick buttons change
+- MQTT poll interval default 30s (was 60s)
+- SQL migration: `server/sql/003_profile_medication_notify.sql`
+
+## 1.3.1
+
+- Log at time and dose history edits skip interval spacing validation (max per day still applies)
+
 ## 1.3.0
 
 - Dose history page: edit time or remove past doses (linked from Today's log)

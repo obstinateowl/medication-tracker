@@ -26,6 +26,11 @@ export type MedStatus = {
   blocked_reason: "interval" | "max_per_day" | null;
 };
 
+export type ProfileMedication = MedStatus & {
+  notify_when_due: boolean;
+  notify_minutes_before: number | null;
+};
+
 export type DoseLog = {
   id: number;
   profile_id: number;
@@ -167,12 +172,27 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
   getProfileMedications: (profileId: number) =>
-    request<MedStatus[]>(`/api/profiles/${profileId}/medications`),
+    request<ProfileMedication[]>(`/api/profiles/${profileId}/medications`),
   setProfileMedications: (profileId: number, medicationIds: number[]) =>
-    request<MedStatus[]>(`/api/profiles/${profileId}/medications`, {
+    request<ProfileMedication[]>(`/api/profiles/${profileId}/medications`, {
       method: "PUT",
       body: JSON.stringify({ medication_ids: medicationIds }),
     }),
+  setMedicationNotifications: (
+    profileId: number,
+    settings: {
+      medication_id: number;
+      notify_when_due: boolean;
+      notify_minutes_before: number | null;
+    }[]
+  ) =>
+    request<ProfileMedication[]>(
+      `/api/profiles/${profileId}/medication-notifications`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ settings }),
+      }
+    ),
   getMedications: () => request<Medication[]>("/api/medications"),
   createMedication: (data: {
     name: string;

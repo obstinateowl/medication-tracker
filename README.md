@@ -39,6 +39,7 @@ Default in `.env.example` and HA app options: **`127.0.0.1`**.
 ```bash
 mysql -u root -p < server/sql/001_init.sql
 mysql -u root -p medication_tracker < server/sql/002_optional_interval_waiting_message.sql
+mysql -u root -p medication_tracker < server/sql/003_profile_medication_notify.sql
 ```
 
 ```sql
@@ -91,11 +92,9 @@ medication-tracker/
 
 ## Phase 2 — Home Assistant notifications (MQTT)
 
-The app publishes per-profile medication state to **Mosquitto** (`core-mosquitto`). Home Assistant auto-creates entities via MQTT discovery; you add automations for `notify.mobile_app` (or any notify platform).
+The app publishes discovery entities plus **MQTT edge events** (`events/due`, `events/reminder`) to **Mosquitto** (`core-mosquitto`). Configure notification preferences in **Settings → Notifications**, then add one or two HA automations — no per-med entity lists required.
 
-See **[DOCS.md](DOCS.md#mqtt--home-assistant-notifications)** for setup and example automations.
-
-Planned: per-medication “notify N minutes before due” option.
+See **[DOCS.md](DOCS.md#mqtt--home-assistant-notifications)** for setup, migration `003`, and example automations.
 
 ## Manual test checklist
 

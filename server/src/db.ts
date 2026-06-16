@@ -77,4 +77,5 @@ export type {
   CountRow,
   LastDoseRow,
   IdRow,
+  ProfileMedicationRow,
 } from "./dbTypes.js";

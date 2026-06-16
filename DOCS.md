@@ -67,6 +67,7 @@ On your MariaDB server (Home Assistant MariaDB add-on terminal or SSH):
 ```bash
 mysql -u root -p < /path/to/server/sql/001_init.sql
 mysql -u root -p medication_tracker < /path/to/server/sql/002_optional_interval_waiting_message.sql
+mysql -u root -p medication_tracker < /path/to/server/sql/003_profile_medication_notify.sql
 ```
 
 Create the app user:
@@ -80,7 +81,7 @@ FLUSH PRIVILEGES;
 ## Updating
 
 1. Copy updated files to `/addons/medication_tracker/`
-2. Bump `version` in `config.yaml` (currently **1.1.0**)
+2. Bump `version` in `config.yaml` (currently **1.4.0**)
 3. **Check for updates** → update the app
 
 ## Other deployment options
@@ -102,13 +103,27 @@ See the main [README.md](README.md) for local development with `npm run dev`.
 
 ## MQTT & Home Assistant notifications
 
-The app publishes medication state to **Mosquitto** using MQTT discovery. Home Assistant creates entities automatically; **you** configure automations to send notifications (`notify.mobile_app`, etc.).
+The app publishes medication state to **Mosquitto** using MQTT discovery (dashboard entities) and **edge events** (automations). Home Assistant sends notifications via `notify.mobile_app` (or any notify platform) in automations you configure.
+
+Design reference: [docs/mqtt-notifications-design.md](docs/mqtt-notifications-design.md)
 
 ### Requirements
 
 - **Mosquitto** add-on running on Home Assistant (default host: `core-mosquitto`)
 - MQTT credentials from your Mosquitto add-on config (if authentication is enabled)
 - **Settings → Devices & services → MQTT** — MQTT integration enabled
+- Run migration `003_profile_medication_notify.sql` on existing databases
+
+### Notification preferences (in app)
+
+**Settings → Notifications** (per profile, assigned meds only):
+
+| Option | Meaning |
+|--------|---------|
+| **Notify when due** | Publish `medication_tracker/events/due` when dose becomes allowed |
+| **Remind before (min)** | Publish `medication_tracker/events/reminder` once per cycle, N minutes before due (requires med interval) |
+
+Defaults are **off** — opt in per medication.
 
 ### App options (defaults)
 
@@ -118,61 +133,97 @@ The app publishes medication state to **Mosquitto** using MQTT discovery. Home A
 | `mqtt_host` | `core-mosquitto` | Mosquitto add-on hostname |
 | `mqtt_port` | `1883` | |
 | `mqtt_user` / `mqtt_password` | empty | Match Mosquitto add-on |
-| `mqtt_topic_prefix` | `medication_tracker` | State topic prefix |
+| `mqtt_topic_prefix` | `medication_tracker` | State and event topic prefix |
+
+Poll interval defaults to **30 seconds** (`MQTT_POLL_INTERVAL_MS`).
 
 After starting the app, check logs for:
 
 ```text
 [mqtt] Connected to core-mosquitto:1883
-[mqtt] Home Assistant discovery active (poll every 60s)
+[mqtt] Home Assistant discovery active (poll every 30s)
 ```
 
-### Entities created (per profile + assigned medication)
+### Discovery entities (per profile + assigned medication)
 
 All grouped under device **Medication Tracker**:
 
 | Entity | Meaning |
 |--------|---------|
-| `binary_sensor.<profile>_<med>_due` | `on` when dose is allowed now |
-| `sensor.<profile>_<med>_seconds` | Countdown seconds |
-| `sensor.<profile>_<med>_next_dose` | Next allowed time |
-| `sensor.<profile>_<med>_doses_today` | Doses logged today |
+| `binary_sensor.p{id}_m{id}_due` | `on` when dose is allowed now |
+| `sensor.p{id}_m{id}_seconds` | Countdown seconds |
+| `sensor.p{id}_m{id}_next_dose` | Next allowed time |
+| `sensor.p{id}_m{id}_doses_today` | Doses logged today |
 
-Only medications **assigned to a profile** (Settings → quick buttons) are published.
+Only medications **assigned to a profile** (Settings → Quick buttons) are published.
 
-### Example automation — notify when dose becomes due
+### MQTT event topics (for automations)
 
-**Settings → Automations → Create automation → Edit in YAML:**
+Non-retained JSON on:
+
+| Topic | When |
+|-------|------|
+| `medication_tracker/events/due` | Dose becomes allowed (`notify_when_due` enabled) |
+| `medication_tracker/events/reminder` | Early reminder window (`notify_minutes_before` enabled) |
+
+Example due payload:
+
+```json
+{
+  "event": "due",
+  "profile_id": 1,
+  "profile": "Josh",
+  "medication_id": 3,
+  "medication": "Ibuprofen",
+  "blocked_reason": null
+}
+```
+
+### Example automation — due (recommended)
+
+One automation handles **all** meds — no entity list to maintain:
 
 ```yaml
-alias: Medication due reminder
-description: Notify when any medication becomes ready to take
+alias: Medication due
 trigger:
-  - platform: state
-    entity_id:
-      - binary_sensor.josh_ibuprofen_due
-    from: "off"
-    to: "on"
+  - trigger: mqtt
+    topic: medication_tracker/events/due
 action:
-  - service: notify.mobile_app
+  - action: notify.mobile_app_your_phone
     data:
       title: "Medication due"
-      message: "Josh — Ibuprofen is ready to take"
+      message: "{{ trigger.payload_json.profile }} — {{ trigger.payload_json.medication }}"
 mode: single
 ```
 
-Replace `entity_id` and message with your entities (find them under **Medication Tracker** device).
+### Example automation — early reminder
 
-For a **shared household alert**, use one automation per med or a single automation with multiple triggers — all can call the same `notify` service.
+```yaml
+alias: Medication reminder
+trigger:
+  - trigger: mqtt
+    topic: medication_tracker/events/reminder
+action:
+  - action: notify.mobile_app_your_phone
+    data:
+      title: "Medication reminder"
+      message: >
+        {{ trigger.payload_json.profile }} — {{ trigger.payload_json.medication }}
+        in {{ (trigger.payload_json.seconds_remaining / 60) | round(0) }} minutes
+mode: single
+```
 
-### Future: early reminder
+Route to different phones with a `choose` block on `trigger.payload_json.profile_id`.
 
-A per-medication “notify X minutes before due” option is planned. For now, automations trigger when `*_due` turns **on** (dose allowed now).
+### Legacy: per-entity state triggers
+
+You can still trigger on `binary_sensor.*_due` `off` → `on`, but you must add each entity manually as meds are assigned. Prefer MQTT event topics above.
 
 ### Troubleshooting MQTT
 
 - **`[mqtt] Could not connect`:** Check `mqtt_host` is `core-mosquitto`, credentials match Mosquitto, Mosquitto add-on is running
 - **No entities in HA:** Confirm MQTT integration is loaded; restart the Medication Tracker app after changing assignments
+- **No notifications:** Enable **Notify when due** in Settings → Notifications; confirm automations subscribe to `events/due` or `events/reminder`
 - **Stale entities:** Removing a profile/med assignment clears discovery on next sync; delete orphaned entities manually if needed
 
 ## Security

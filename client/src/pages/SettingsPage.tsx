@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type Medication, type Profile } from "../api";
+import { api, type Medication, type Profile, type ProfileMedication } from "../api";
 import { useActiveProfile } from "../context/ProfileContext";
 import { intervalLabel } from "../utils/time";
 
@@ -11,6 +11,8 @@ export function SettingsPage() {
     null
   );
   const [assignedIds, setAssignedIds] = useState<Set<number>>(new Set());
+  const [assignedMeds, setAssignedMeds] = useState<ProfileMedication[]>([]);
+  const [savingNotifications, setSavingNotifications] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [error, setError] = useState("");
@@ -50,6 +52,7 @@ export function SettingsPage() {
     setError("");
     try {
       const assigned = await api.getProfileMedications(profileId);
+      setAssignedMeds(assigned);
       setAssignedIds(new Set(assigned.map((m) => m.id)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load assignments");
@@ -188,12 +191,49 @@ export function SettingsPage() {
     if (assignmentProfileId == null) return;
     setError("");
     try {
-      await api.setProfileMedications(assignmentProfileId, [...assignedIds]);
+      const updated = await api.setProfileMedications(assignmentProfileId, [
+        ...assignedIds,
+      ]);
+      setAssignedMeds(updated);
+      setAssignedIds(new Set(updated.map((m) => m.id)));
       const name = assignmentProfile?.name ?? "Profile";
       setMessage(`Quick buttons updated for ${name}`);
-      await loadAssignments(assignmentProfileId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save assignments");
+    }
+  };
+
+  const updateNotification = (
+    medId: number,
+    patch: Partial<Pick<ProfileMedication, "notify_when_due" | "notify_minutes_before">>
+  ) => {
+    setAssignedMeds((prev) =>
+      prev.map((m) => (m.id === medId ? { ...m, ...patch } : m))
+    );
+  };
+
+  const saveNotifications = async () => {
+    if (assignmentProfileId == null) return;
+    setError("");
+    setSavingNotifications(true);
+    try {
+      const updated = await api.setMedicationNotifications(
+        assignmentProfileId,
+        assignedMeds.map((m) => ({
+          medication_id: m.id,
+          notify_when_due: m.notify_when_due,
+          notify_minutes_before: m.notify_minutes_before,
+        }))
+      );
+      setAssignedMeds(updated);
+      const name = assignmentProfile?.name ?? "Profile";
+      setMessage(`Notification settings saved for ${name}`);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to save notification settings"
+      );
+    } finally {
+      setSavingNotifications(false);
     }
   };
 
@@ -445,6 +485,94 @@ export function SettingsPage() {
               onClick={() => void saveAssignments()}
             >
               Save for {assignmentProfile?.name ?? "profile"}
+            </button>
+          </>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>Notifications</h2>
+        <p className="muted">
+          Choose which assigned medications publish MQTT events for Home Assistant
+          automations. Requires Mosquitto and the MQTT integration.
+        </p>
+        <label className="profile-select-label">
+          Profile
+          <select
+            value={assignmentProfileId ?? ""}
+            onChange={(e) => setAssignmentProfileId(Number(e.target.value))}
+          >
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+                {p.id === activeProfile.id ? " (you)" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {loadingAssignments ? (
+          <p className="muted">Loading...</p>
+        ) : assignedMeds.length === 0 ? (
+          <p className="muted">
+            Assign medications under Quick buttons first.
+          </p>
+        ) : (
+          <>
+            <ul className="notify-list">
+              {assignedMeds.map((med) => (
+                <li key={med.id} className="notify-row">
+                  <div className="notify-row-main">
+                    <strong>{med.name}</strong>
+                    <label className="notify-toggle">
+                      <input
+                        type="checkbox"
+                        checked={med.notify_when_due}
+                        onChange={(e) =>
+                          updateNotification(med.id, {
+                            notify_when_due: e.target.checked,
+                          })
+                        }
+                      />
+                      Notify when due
+                    </label>
+                  </div>
+                  <label className="notify-reminder">
+                    Remind before (min)
+                    <input
+                      type="number"
+                      min="1"
+                      max="1440"
+                      placeholder="Off"
+                      disabled={med.interval_minutes == null}
+                      value={med.notify_minutes_before ?? ""}
+                      onChange={(e) => {
+                        const raw = e.target.value.trim();
+                        updateNotification(med.id, {
+                          notify_minutes_before: raw
+                            ? Number(raw)
+                            : null,
+                        });
+                      }}
+                    />
+                  </label>
+                  {med.interval_minutes == null && (
+                    <p className="muted notify-hint">
+                      Early reminder requires an interval on the medication.
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={savingNotifications}
+              onClick={() => void saveNotifications()}
+            >
+              {savingNotifications
+                ? "Saving..."
+                : `Save notifications for ${assignmentProfile?.name ?? "profile"}`}
             </button>
           </>
         )}

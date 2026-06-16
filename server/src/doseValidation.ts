@@ -50,7 +50,8 @@ export async function validateBackdatedDose(
   med: MedicationRow,
   takenAt: Date,
   now = new Date(),
-  excludeLogId?: number
+  excludeLogId?: number,
+  skipIntervalCheck = false
 ): Promise<DoseValidationResult> {
   if (takenAt.getTime() > now.getTime()) {
     return { ok: false, error: "Cannot log a dose in the future" };
@@ -77,7 +78,7 @@ export async function validateBackdatedDose(
     };
   }
 
-  if (med.interval_minutes != null) {
+  if (!skipIntervalCheck && med.interval_minutes != null) {
     const intervalMs = med.interval_minutes * 60_000;
 
     const prevParams: unknown[] = [profileId, medicationId, takenAt];
@@ -136,7 +137,8 @@ export async function validateEditedDose(
     med,
     takenAt,
     now,
-    logId
+    logId,
+    true
   );
 }
 

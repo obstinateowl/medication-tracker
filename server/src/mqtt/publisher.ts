@@ -112,7 +112,7 @@ function statePayload(entry: MqttMedState): string {
 }
 
 export class MqttHaPublisher {
-  private client: MqttClient | null = null;
+  client: MqttClient | null = null;
   private connected = false;
   private readonly knownDiscoveryKeys = new Set<string>();
   private readonly prefix = config.mqtt.topicPrefix;

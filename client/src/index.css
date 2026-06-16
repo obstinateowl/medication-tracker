@@ -423,6 +423,56 @@ input:not([type]) {
   padding: 0.35rem 0;
 }
 
+.notify-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+
+.notify-row {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.notify-row:last-child {
+  border-bottom: none;
+}
+
+.notify-row-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.notify-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  flex-direction: row;
+}
+
+.notify-reminder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  max-width: 280px;
+}
+
+.notify-reminder input {
+  width: 5rem;
+}
+
+.notify-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
