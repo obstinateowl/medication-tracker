@@ -1,0 +1,5 @@
+# Optional: use this file if publishing as a Home Assistant app repository.
+# https://developers.home-assistant.io/docs/add-ons/repository
+name: Medication Tracker
+url: https://github.com/your-org/medication-tracker
+maintainer: your-name

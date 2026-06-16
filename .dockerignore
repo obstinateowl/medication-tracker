@@ -1,0 +1,11 @@
+node_modules
+client/node_modules
+server/node_modules
+.env
+.git
+*.log
+.DS_Store
+
+# Standalone image builds fresh; HA addon builds in-container
+client/dist
+server/dist
